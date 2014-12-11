@@ -1,6 +1,6 @@
 # Locality Sensitive Hashing Library on Distributed Stores
 
-* Still a work in progress, code will change dramatically *
+*Still a work in progress, code will change dramatically*
 
 This library implements the LSH algorithm in a way that the hash tables can be stored in distributed systems such as Redis or Memcache.
 
