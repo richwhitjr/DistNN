@@ -2,9 +2,9 @@ package com.twitter.lsh
 
 import com.twitter.lsh.hashing.EuclideanHashFamily
 import com.twitter.lsh.stores.{HashTableManagerMemory, VectorStoreMemory}
-import com.twitter.lsh.vector.{LshVector, VectorMath, DoubleLshVector}
+import com.twitter.lsh.vector.{LshVector, VectorMath}
 
-case class IndexedVector(id:Long, vector:DoubleLshVector)
+case class IndexedVector(id:Long, vector:LshVector)
 
 object LshEuclideanDoubleVector {
   def withVectors(lshParams:LshParams, vectors:Array[IndexedVector]) = {
@@ -13,10 +13,10 @@ object LshEuclideanDoubleVector {
     lsh
   }
   def apply(lshParams:LshParams) = {
-    implicit val monoid = DoubleLshVector.doubleLshVectorMonoid
+    implicit val monoid = LshVector.lshVectorMonoid
     val hashFamily = new EuclideanHashFamily(lshParams.radius, lshParams.dimensions)
-    val vectorStore = VectorStoreMemory[Long, DoubleLshVector]
+    val vectorStore = VectorStoreMemory[Long, LshVector]
     val hashTableManager = new HashTableManagerMemory[Long](hashFamily, lshParams.hashTables, lshParams.hashFunctions)
-    new Lsh[Long, DoubleLshVector, DoubleLshVector](hashFamily, VectorMath.normalize, vectorStore, hashTableManager)
+    new Lsh[Long, LshVector, LshVector](hashFamily, VectorMath.normalize, vectorStore, hashTableManager)
   }
 }

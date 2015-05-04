@@ -46,11 +46,11 @@ case class LshParams(hashTables: Int, hashFunctions: Int, radius: Double, dimens
  * @tparam U - Vector type of Raw Vector
  * @tparam V - Vector type of Hash Vector
  */
-class Lsh[T, U <: LshVector, V <: LshVector](family: HashFamily,
-                                             normalize: U => V,
-                                             vectorStore: MergeableStore[T, U],
-                                             hashTableManager: HashTableManager[T])
-                                            (implicit val uMonoid: Monoid[U]) {
+class Lsh[T, U <: BaseLshVector, V <: BaseLshVector](family: HashFamily,
+                                                     normalize: U => V,
+                                                     vectorStore: MergeableStore[T, U],
+                                                     hashTableManager: HashTableManager[T])
+                                                    (implicit val uMonoid: Monoid[U]) {
   val log = Logger("Lsh")
   def update(keys: Set[T], value: U) = {
     // 1. Get current U vectors
@@ -71,11 +71,11 @@ class Lsh[T, U <: LshVector, V <: LshVector](family: HashFamily,
   /**
    * Given a normalized vector (V), returns matching keys (T) and their raw vectors (U).
    * Used internally by queryNormalizedVector but useful if raw vectors are wanted.
-   * @param vector - Normalized vector of type V (usually DoubleLshVector)
+   * @param vector - Normalized vector of type V (usually LshVector)
    * @return Map[keyObject -> Option[rawVector]]
    */
   def queryNormalizedVectorRawResults(vector: V): Future[Map[T, Option[U]]] = {
-    val vec: LshVector = vector
+    val vec: BaseLshVector = vector
     hashTableManager.query(Set(vec)).map{ candidates =>
       val (foundVecs, missingVecs) = candidates.partition { case (k, v) => v.isDefined}
       val mappedFoundVecs = foundVecs.mapValues{vec =>

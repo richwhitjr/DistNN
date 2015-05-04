@@ -1,9 +1,9 @@
 package com.twitter.lsh.hashing
 
-import com.twitter.logging.Logger
-
 import java.util.Arrays
-import com.twitter.lsh.vector.{VectorMath, LshVector}
+
+import com.twitter.logging.Logger
+import com.twitter.lsh.vector.{BaseLshVector, VectorMath}
 
 import scala.util.Random
 
@@ -36,6 +36,6 @@ class EuclideanHashFamily(radius: Double, dimension: Int) extends HashFamily wit
 
   def combine(hashes: Array[Int]): Int = Arrays.hashCode(hashes)
 
-  def score(keyVec: LshVector, candidateVec: LshVector): Double =
+  def score(keyVec: BaseLshVector, candidateVec: BaseLshVector): Double =
     VectorMath.dot(keyVec.toDoubleVec, candidateVec.toDoubleVec)
 }

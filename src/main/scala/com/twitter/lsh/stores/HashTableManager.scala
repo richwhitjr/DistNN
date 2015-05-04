@@ -3,8 +3,8 @@ package com.twitter.lsh.stores
 import com.twitter.logging.Logger
 import com.twitter.lsh.hashing.HashFamily
 import com.twitter.lsh.vector._
-import com.twitter.storehaus.algebra.MergeableStore
 import com.twitter.storehaus.FutureOps
+import com.twitter.storehaus.algebra.MergeableStore
 import com.twitter.util.Future
 
 /**
@@ -14,8 +14,8 @@ import com.twitter.util.Future
  */
 
 trait HashTableManager[T] {
-  def update(oldKeyVecs: Map[T, LshVector], newKeyVecs: Map[T, (LshVector, LshVector)]):Future[Map[(TableIdentifier, Int), Future[Unit]]]
-  def query(vecs: Set[LshVector]): Future[Map[T, Option[LshVector]]]
+  def update(oldKeyVecs: Map[T, BaseLshVector], newKeyVecs: Map[T, (BaseLshVector, BaseLshVector)]):Future[Map[(TableIdentifier, Int), Future[Unit]]]
+  def query(vecs: Set[BaseLshVector]): Future[Map[T, Option[BaseLshVector]]]
 }
 
 abstract class HashTableManagerStore[T](family: HashFamily,
@@ -87,7 +87,7 @@ abstract class HashTableManagerStore[T](family: HashFamily,
     } else (oldKeys, newKeys)
   }
 
-  def update(deleteVecs: Map[T, LshVector], insertVecs: Map[T, (LshVector, LshVector)]):
+  def update(deleteVecs: Map[T, BaseLshVector], insertVecs: Map[T, (BaseLshVector, BaseLshVector)]):
     Future[Map[(TableIdentifier, Int), Future[Unit]]]= {
     val delKeys = tables.map(table => table.getKeys(deleteVecs)).flatten.toMap
     val insKeys = tables.map(table => table.getKeys(insertVecs.mapValues(_._2))).flatten.toMap
@@ -104,7 +104,7 @@ abstract class HashTableManagerStore[T](family: HashFamily,
    * @param vecs - Set[Normalized LshVectors]
    * @return - Set(Objects similar to Key1) U ... U Set(Objects similar to KeyN)
    */
-  def query(vecs: Set[LshVector]): Future[Map[T, Option[LshVector]]] = {
+  def query(vecs: Set[BaseLshVector]): Future[Map[T, Option[BaseLshVector]]] = {
     log.debug("query(vecs:%s)", vecs)
     val items = tables.map(table => table.getKeys(vecs)).flatten.toSet
     log.debug("query items: %s", items)

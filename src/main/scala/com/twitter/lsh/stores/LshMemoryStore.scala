@@ -1,10 +1,10 @@
 package com.twitter.lsh.stores
 
-import com.twitter.storehaus.algebra.MergeableStore
 import com.twitter.algebird.Monoid
-import com.twitter.storehaus.JMapStore
 import com.twitter.lsh.hashing.HashFamily
 import com.twitter.lsh.vector._
+import com.twitter.storehaus.JMapStore
+import com.twitter.storehaus.algebra.MergeableStore
 
 /**
  * In memory implementation of LSH storage using Java Map

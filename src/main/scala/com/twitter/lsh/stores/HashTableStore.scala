@@ -11,10 +11,10 @@ class BaseHashTable[T](id: Int, numHashes: Int, family: HashFamily) {
   val hashFunctions = for (i <- 1 to numHashes) yield family.createHasher(id, i)
   val tableId = new TableIdentifier(id, numHashes, family.hashCode)
 
-  def hash(vector: LshVector): Int =
+  def hash(vector: BaseLshVector): Int =
     family.combine(hashFunctions.map(_.hash(vector.toDoubleVec)).toArray)
 
-  def getKeys(vecs: Set[LshVector]): Set[(TableIdentifier, Int)] = {
+  def getKeys(vecs: Set[BaseLshVector]): Set[(TableIdentifier, Int)] = {
     vecs.map(vec => (tableId, hash(vec)))
   }
 }
@@ -31,14 +31,14 @@ class BaseHashTable[T](id: Int, numHashes: Int, family: HashFamily) {
  */
 class CachingHashTable[T](id: Int, numHashes: Int, family: HashFamily, size: Int = 98300) // ~2^17*0.75
   extends BaseHashTable[T](id, numHashes, family) {
-  val hashCache = new SynchronizedLruMap[LshVector, Int](size)
+  val hashCache = new SynchronizedLruMap[BaseLshVector, Int](size)
 
   /**
    * Given a vector, compute its hash. Uses an internal HashMap for efficiency.
    * @param vector - LshVector to hash. This vector is expected to be normalized.
    * @return - Int hashcode.
    */
-  override def hash(vector: LshVector): Int = {
+  override def hash(vector: BaseLshVector): Int = {
     hashCache.getOrElse(vector, {
       // If not in cache, compute, store, and return
       val hashVal = family.combine(hashFunctions.map(_.hash(vector.toDoubleVec)).toArray)
@@ -49,9 +49,9 @@ class CachingHashTable[T](id: Int, numHashes: Int, family: HashFamily, size: Int
 }
 
 trait StoringHashTable[T] {
-  def add(keyVecs: Map[T, LshVector])
-  def delete(keyVecs: Map[T, LshVector])
-  def query(vector: LshVector): Future[Option[Set[T]]]
+  def add(keyVecs: Map[T, BaseLshVector])
+  def delete(keyVecs: Map[T, BaseLshVector])
+  def query(vector: BaseLshVector): Future[Option[Set[T]]]
 }
 
 /**
@@ -80,22 +80,22 @@ class HashTable[T](id: Int, numHashes: Int,
    * @tparam T - Key type
    * @return - Map((Table Identifier, Hashcode) -> Set(Key))
    */
-  def getKeys[T](keyVecs: Map[T, LshVector]): Map[(TableIdentifier, Int), Set[T]] = {
+  def getKeys[T](keyVecs: Map[T, BaseLshVector]): Map[(TableIdentifier, Int), Set[T]] = {
     keyVecs.mapValues(vec => (tableId, hash(vec))).map(_.swap).mapValues(Set(_))
   }
 
-  def add(keyVecs: Map[T, LshVector]) = {
+  def add(keyVecs: Map[T, BaseLshVector]) = {
     store.multiMerge(keyVecs.map(_.swap).map{case(k,v) => ((tableId, hash(k)), Set(v))})
   }
 
-  def delete(keyVecs: Map[T, LshVector]) = {
+  def delete(keyVecs: Map[T, BaseLshVector]) = {
     val doubleKeyToStringMap = keyVecs.mapValues(vec => (tableId, hash(vec))).map(_.swap)
     FutureOps.mapCollect(store.multiGet(doubleKeyToStringMap.keySet))
       .map(results => store.multiPut(results.filter(_._2.isDefined).map{case (k,v) =>
       (k, Some(v.get -- Set(doubleKeyToStringMap.get(k).get)))}))
   }
 
-  def query(vector: LshVector): Future[Option[Set[T]]] = {
+  def query(vector: BaseLshVector): Future[Option[Set[T]]] = {
     store.get((tableId, hash(vector)))
   }
 }

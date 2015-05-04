@@ -20,9 +20,9 @@ Below is an example that constructs the LSH table and queries it for one vector.
   
 ```scala
   val vectors = Array(
-    IndexedVector(1L, DoubleLshVector(Array(1.0, 2.0, 3.0, 4.0))),
-    IndexedVector(2L, DoubleLshVector(Array(3.0, 2.0, 1.0, 9.0))),
-    IndexedVector(3L, DoubleLshVector(Array(19.0, 22.0, 13.0, 13.0)))
+    IndexedVector(1L, LshVector(Array(1.0, 2.0, 3.0, 4.0))),
+    IndexedVector(2L, LshVector(Array(3.0, 2.0, 1.0, 9.0))),
+    IndexedVector(3L, LshVector(Array(19.0, 22.0, 13.0, 13.0)))
   )
   
   val lshParams = 

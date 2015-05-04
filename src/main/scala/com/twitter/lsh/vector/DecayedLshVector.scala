@@ -83,7 +83,7 @@ object DecayedLshVector {
  * Wraps algebird's DecayedVector to allow Lsh for exponential moving averages.
  * @param in - DecayedVector to wrap. In practice, consumers will use the internal constructors.
  */
-class DecayedLshVector(in: DecayedVector[Array]) extends LshVector {
+class DecayedLshVector(in: DecayedVector[Array]) extends BaseLshVector {
   // Converts Array + scaledTime to wrapped DecayedVector. Used by Injections/Bijections
   def this(in: Array[Double], scaledTime: Double) = this(DecayedVector[Array](in, scaledTime))
   // Converts Array + time + halflife into a wrapped DecayedVector. This is the constructor usually

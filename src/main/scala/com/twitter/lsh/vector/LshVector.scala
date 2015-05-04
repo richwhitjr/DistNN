@@ -1,46 +1,34 @@
 package com.twitter.lsh.vector
 
-import com.twitter.algebird._
+import com.twitter.algebird.Monoid
 import com.twitter.bijection.{Bijection, Bufferable}
-import java.util
 
 /**
- * Defines the necessary operations to have a vector for LSH as well as 2 vector types.
+ * Defines the Injection and Monoid necessary for a MergeableSource based on DoubleLshVector
  */
+object LshVector {
+  // DoubleLshVector <=> Array[Double]
+  implicit val lshVectorBijection = Bijection.build { dlv:LshVector => dlv.toDoubleVec }
+  { case vec => LshVector(vec) }
 
-/**
- * An LshVector must permit the operations listed below.
- */
-trait LshVector {
-  def size: Int
-  def apply(index: Int): Double  // Return Vector[index]
-  def toDoubleVec: Array[Double]
-  override def hashCode:Int = util.Arrays.hashCode(toDoubleVec)
-}
+  // DoubleLshVector => Array[Double] => Array[Bytes]
+  implicit val lshVectorInjection =
+    Bufferable.injectionOf(Bufferable.viaBijection[LshVector, Array[Double]])
 
-/**
- * Monoid defining Array1 + Array2 as the pairwise sum of each entry.
- * @tparam T - Type of items being summed. This is usually Doubles for lsh purposes.
- */
-class SummingArrayMonoid[T](implicit semi: Semigroup[T], manifest: Manifest[T])
-  extends Monoid[Array[T]] {
-  override def zero = Array[T]()
-  override def plus(left: Array[T], right: Array[T]) = {
-    val (longer, shorter) = if (left.length > right.length) (left, right) else (right, left)
-    val sum = longer.clone
-    for (i <- 0 until shorter.length)
-      sum.update(i, semi.plus(sum(i), shorter(i)))
-
-    sum
+  implicit val lshVectorMonoid = new Monoid[LshVector] {
+    val saMonoid = new SummingArrayMonoid[Double]()
+    override def zero = LshVector(saMonoid.zero)
+    override def plus(left: LshVector, right: LshVector) = LshVector(saMonoid.plus(left.vector, right.vector))
   }
 }
 
 /**
- * Extends the previous Monoid into a Group by providing negation. This is necessary for Monoids for
- * decayed vectors.
- * @tparam T - Type of items being summed. This is usually Doubles for lsh purposes.
+ * DoubleLshVector is just a thin wrapper around an Array of Doubles. It's pretty much the most
+ * basic LshVector possible.
+ * @param vector - The Array of Doubles to wrap.
  */
-class SummingArrayGroup[T](implicit grp: Group[T], manifest: Manifest[T])
-  extends SummingArrayMonoid[T]()(grp, manifest) with Group[Array[T]] {
-  override def negate(g: Array[T]): Array[T] = g.map{ grp.negate(_)}.toArray
+case class LshVector(vector: Array[Double]) extends BaseLshVector {
+  def size = vector.size
+  def apply(index:Int) = vector(index)
+  def toDoubleVec = vector
 }
