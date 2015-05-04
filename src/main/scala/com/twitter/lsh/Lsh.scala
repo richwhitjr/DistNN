@@ -19,7 +19,6 @@ import com.twitter.util.Future
  * Briefly, given an item (with a vector), hashes it into N hashtables. Each hashtable computes a
  * different hashcode for it, "wanting" similar items to collide, storing hashcode -> set(items).
  * On query, given an item('s vector), we union all the set(items) it maps to.
- * Created by asciola on 7/8/14.
  */
 
 /**
@@ -49,13 +48,11 @@ case class LshParams(hashTables: Int, hashFunctions: Int, radius: Double, dimens
  */
 class Lsh[T, U <: LshVector, V <: LshVector](family: HashFamily,
                                              normalize: U => V,
-                                             vectorStore:MergeableStore[T, U],
-                                             hashTableManager:HashTableManager[T])
+                                             vectorStore: MergeableStore[T, U],
+                                             hashTableManager: HashTableManager[T])
                                             (implicit val uMonoid: Monoid[U]) {
   val log = Logger("Lsh")
   def update(keys: Set[T], value: U) = {
-    val start = System.currentTimeMillis()
-
     // 1. Get current U vectors
     FutureOps.mapCollect(vectorStore.multiGet(keys))
       .onSuccess { vecs =>

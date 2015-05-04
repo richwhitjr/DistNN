@@ -9,7 +9,6 @@ import com.twitter.lsh.vector._
 /**
  * In memory implementation of LSH storage using Java Map
  */
-
 class HashTableManagerMemory[T](family: HashFamily, numHashTables: Int, numHashes: Int)
   extends HashTableManagerStore[T](family, numHashTables, numHashes){
   override val hashTable = MergeableStore.fromStore(new JMapStore[(TableIdentifier, Int), Set[T]])

@@ -11,10 +11,6 @@ import com.twitter.util.Future
  * Base implementations of the HashTableManager
  * If you want to do something very different extend the trait or else use the Store for
  * most distributed systems.
- *
- * User: rwhitcomb
- * Date: 8/6/14
- * Time: 8:45 AM
  */
 
 trait HashTableManager[T] {
@@ -31,7 +27,7 @@ abstract class HashTableManagerStore[T](family: HashFamily,
   val hashTable: MergeableStore[(TableIdentifier, Int), Set[T]]
 
   val tables = for (i <- 1 to numHashTables)
-    yield new MemcacheHashTable[T](i, numHashes, hashTable, family)
+    yield new HashTable[T](i, numHashes, hashTable, family)
 
   /**
    * Delete takes a set of keys and their corresponding vectors and deletes them from all hashtables,

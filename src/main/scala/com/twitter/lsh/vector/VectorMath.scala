@@ -14,6 +14,16 @@ object VectorMath {
     DoubleLshVector(returnVec)
   }
 
+  def multiply(vector:LshVector, scalar:Double):LshVector = {
+    val returnVec = Array.ofDim[Double](vector.size)
+    var idx = 0
+    while(idx < vector.size){
+      returnVec(idx) = vector(idx) * scalar
+      idx += 1
+    }
+    DoubleLshVector(returnVec)
+  }
+
   def vectorDivide(vector1:LshVector, vector2:LshVector):LshVector = {
       val minSize = math.min(vector1.size, vector2.size)
       val returnVec = Array.ofDim[Double](minSize)

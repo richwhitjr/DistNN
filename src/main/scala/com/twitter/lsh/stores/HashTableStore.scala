@@ -7,13 +7,6 @@ import com.twitter.storehaus.FutureOps
 import com.twitter.storehaus.algebra.MergeableStore
 import com.twitter.util.{Future, SynchronizedLruMap}
 
-case class TableIdentifier(tableId: Int, numHashes: Int, familyHash: Int) extends Ordered[TableIdentifier] {
-  import scala.math.Ordered.orderingToOrdered
-  def compare(that: TableIdentifier): Int = {
-    (this.tableId, this.numHashes, this.familyHash) compare (that.tableId, that.numHashes, that.familyHash)
-  }
-}
-
 class BaseHashTable[T](id: Int, numHashes: Int, family: HashFamily) {
   val hashFunctions = for (i <- 1 to numHashes) yield family.createHasher(id, i)
   val tableId = new TableIdentifier(id, numHashes, family.hashCode)
@@ -62,7 +55,7 @@ trait StoringHashTable[T] {
 }
 
 /**
- * MemcacheHashTable represents an individual hashtable backed by memcache.
+ * HashTable represents an individual hashtable backed by storehaus.
  * Each hashtable consists of multiple hash functions which are constructed from the hash family,
  * a cache of previously hashed Vectors, and a unique, deterministic table identifier.
  *
@@ -74,9 +67,9 @@ trait StoringHashTable[T] {
  * @param family - The HashFamily to use for hash creation.
  * @tparam T - Key type, the item users ultimately want.
  */
-class MemcacheHashTable[T](id: Int, numHashes:Int,
-                     store: MergeableStore[(TableIdentifier, Int), Set[T]],
-                     family: HashFamily) extends CachingHashTable[T](id, numHashes, family)
+class HashTable[T](id: Int, numHashes: Int,
+                   store: MergeableStore[(TableIdentifier, Int), Set[T]],
+                   family: HashFamily) extends CachingHashTable[T](id, numHashes, family)
   with StoringHashTable[T] {
   lazy val log = Logger(s"HashTable[$id]")
   /**
