@@ -4,6 +4,8 @@ This library implements the LSH algorithm in a way that the hash tables can be s
 
 It also comes with an option to store everything in memory.  Makes heavy use of the Storehaus library to abstract the data stores.
 
+To read more about the algorithm see http://en.wikipedia.org/wiki/Locality-sensitive_hashing
+
 ## Building
 There is a script (called sbt) in the root that loads the correct sbt version to build:
 
@@ -12,7 +14,7 @@ There is a script (called sbt) in the root that loads the correct sbt version to
 3. ./sbt assembly
 
 ## Quick Start
-The easiest place to start would be a simple LSH Server that used in memory hash tables.
+The easiest place to start would be a simple LSH Server that uses in memory hash tables.
 
 Below is an example that constructs the LSH table and queries it for one vector.
   
@@ -22,12 +24,20 @@ Below is an example that constructs the LSH table and queries it for one vector.
     IndexedVector(2L, DoubleLshVector(Array(3.0, 2.0, 1.0, 9.0))),
     IndexedVector(3L, DoubleLshVector(Array(19.0, 22.0, 13.0, 13.0)))
   )
+  
+  val lshParams = 
+    LshParams(
+      hashTables = 1,
+      hashFunctions = 5,
+      radius = 1.0,
+      dimensions = 4
+    )
 
-  val lsh = LshEuclideanDoubleVector.withVectors(LshParams(1, 5, 1.0, 4), vectors)
+  val lsh = LshEuclideanDoubleVector.withVectors(lshParams, vectors)
 
   val firstVector = vectors(0)
   val (_, lshResults) = Await.result(lsh.query(firstVector.vector))
   val scoredResults = lsh.scoreQuery(firstVector.vector, lshResults, 10)
-  
+
   scoredResults.foreach(println)
 ```
