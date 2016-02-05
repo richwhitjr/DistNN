@@ -7,14 +7,14 @@ import com.twitter.storehaus.FutureOps
 import com.twitter.storehaus.algebra.MergeableStore
 import com.twitter.util.{Future, SynchronizedLruMap}
 
-class BaseHashTable[T](id: Int, numHashes: Int, family: HashFamily) {
+class BaseHashTable[T, U <: BaseLshVector[U]](id: Int, numHashes: Int, family: HashFamily) {
   val hashFunctions = for (i <- 1 to numHashes) yield family.createHasher(id, i)
   val tableId = new TableIdentifier(id, numHashes, family.hashCode)
 
-  def hash(vector: BaseLshVector): Int =
-    family.combine(hashFunctions.map(_.hash(vector.toDoubleVec)).toArray)
+  def hash(vector: U): Int =
+    family.combine(hashFunctions.map(_.hash(vector.vector)).toArray)
 
-  def getKeys(vecs: Set[BaseLshVector]): Set[(TableIdentifier, Int)] =
+  def getKeys(vecs: Set[U]): Set[(TableIdentifier, Int)] =
     vecs.map(vec => (tableId, hash(vec)))
 }
 
@@ -28,29 +28,29 @@ class BaseHashTable[T](id: Int, numHashes: Int, family: HashFamily) {
  * @param size - Cache Size. Defaults to 98,300 entries (just under 2^17*0.75 to avoid resizing).
  * @tparam T - See BaseHashTable
  */
-class CachingHashTable[T](id: Int, numHashes: Int, family: HashFamily, size: Int = 98300) // ~2^17*0.75
-  extends BaseHashTable[T](id, numHashes, family) {
+class CachingHashTable[T, U <: BaseLshVector[U]](id: Int, numHashes: Int, family: HashFamily, size: Int = 98300) // ~2^17*0.75
+  extends BaseHashTable[T, U](id, numHashes, family) {
 
-  val hashCache = new SynchronizedLruMap[BaseLshVector, Int](size)
+  val hashCache = new SynchronizedLruMap[U, Int](size)
 
   /**
    * Given a vector, compute its hash. Uses an internal HashMap for efficiency.
    * @param vector - LshVector to hash. This vector is expected to be normalized.
    * @return - Int hashcode.
    */
-  override def hash(vector: BaseLshVector): Int = {
+  override def hash(vector: U): Int = {
     hashCache.getOrElse(vector, {
-      val hashVal = family.combine(hashFunctions.map(_.hash(vector.toDoubleVec)).toArray)
+      val hashVal = family.combine(hashFunctions.map(_.hash(vector.vector)).toArray)
       hashCache.put(vector, hashVal)
       hashVal
     })
   }
 }
 
-trait StoringHashTable[T] {
-  def add(keyVecs: Map[T, BaseLshVector])
-  def delete(keyVecs: Map[T, BaseLshVector])
-  def query(vector: BaseLshVector): Future[Option[Set[T]]]
+trait StoringHashTable[T, U <: BaseLshVector[U]] {
+  def add(keyVecs: Map[T, U])
+  def delete(keyVecs: Map[T, U])
+  def query(vector: U): Future[Option[Set[T]]]
 }
 
 /**
@@ -66,10 +66,10 @@ trait StoringHashTable[T] {
  * @param family - The HashFamily to use for hash creation.
  * @tparam T - Key type, the item users ultimately want.
  */
-class HashTable[T](id: Int, numHashes: Int,
+class HashTable[T, U <: BaseLshVector[U]](id: Int, numHashes: Int,
                    store: MergeableStore[(TableIdentifier, Int), Set[T]],
-                   family: HashFamily) extends CachingHashTable[T](id, numHashes, family)
-  with StoringHashTable[T] {
+                   family: HashFamily) extends CachingHashTable[T, U](id, numHashes, family)
+  with StoringHashTable[T, U] {
 
   lazy val log = Logger(s"HashTable[$id]")
   /**
@@ -79,15 +79,15 @@ class HashTable[T](id: Int, numHashes: Int,
    * @param keyVecs - Map(Key -> Normalized Vector)
    * @return - Map((Table Identifier, Hashcode) -> Set(Key))
    */
-  def getKeys(keyVecs: Map[T, BaseLshVector]): Map[(TableIdentifier, Int), Set[T]] = {
+  def getKeys(keyVecs: Map[T, U]): Map[(TableIdentifier, Int), Set[T]] = {
     keyVecs.mapValues(vec => (tableId, hash(vec))).map(_.swap).mapValues(Set(_))
   }
 
-  def add(keyVecs: Map[T, BaseLshVector]) = {
+  def add(keyVecs: Map[T, U]) = {
     store.multiMerge(keyVecs.map(_.swap).map{case(k,v) => ((tableId, hash(k)), Set(v))})
   }
 
-  def delete(keyVecs: Map[T, BaseLshVector]) = {
+  def delete(keyVecs: Map[T, U]) = {
     val doubleKeyToStringMap = keyVecs.mapValues(vec => (tableId, hash(vec))).map(_.swap)
     FutureOps.mapCollect(store.multiGet(doubleKeyToStringMap.keySet))
       .map(results =>
@@ -98,7 +98,7 @@ class HashTable[T](id: Int, numHashes: Int,
       )
   }
 
-  def query(vector: BaseLshVector): Future[Option[Set[T]]] = {
+  def query(vector: U): Future[Option[Set[T]]] = {
     store.get((tableId, hash(vector)))
   }
 }

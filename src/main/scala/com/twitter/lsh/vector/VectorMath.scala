@@ -1,87 +1,103 @@
 package com.twitter.lsh.vector
 
-/**
- * Vector math functions for LshVectors.
- */
 object VectorMath {
-  def divide(vector: BaseLshVector, scalar:Double) = { //vectorFn(vector, multiplyFn(scalar, _))
+  def divide[R <: BaseLshVector[R]](vector: R, scalar: Double): R = {
     val returnVec = Array.ofDim[Double](vector.size)
+
     var idx = 0
     while(idx < vector.size){
       returnVec(idx) = vector(idx) / scalar
       idx += 1
     }
-    LshVector(returnVec)
+
+    vector.vectorCopy(returnVec)
   }
 
-  def multiply(vector: BaseLshVector, scalar: Double):BaseLshVector = {
+  def multiply[R <: BaseLshVector[R]](vector: R, scalar: Double): R = {
     val returnVec = Array.ofDim[Double](vector.size)
     var idx = 0
+
     while(idx < vector.size){
       returnVec(idx) = vector(idx) * scalar
       idx += 1
     }
-    LshVector(returnVec)
+
+    vector.vectorCopy(returnVec)
   }
 
-  def vectorDivide(vector1: BaseLshVector, vector2: BaseLshVector):BaseLshVector = {
-    val minSize = math.min(vector1.size, vector2.size)
+  def vectorDivide[R <: BaseLshVector[R], S <: BaseLshVector[S]](vector: R, vector2: S): R = {
+    val minSize = math.min(vector.size, vector2.size)
+
     val returnVec = Array.ofDim[Double](minSize)
     var idx = 0
+
     while(idx < minSize){
-      returnVec(idx) = if(vector2(idx) == 0.0){
-        0.0
-      } else {
-        vector1(idx) / vector2(idx)
-      }
+      returnVec(idx) = if(vector2(idx) == 0.0) 0.0 else vector(idx) / vector2(idx)
       idx += 1
     }
-    LshVector(returnVec)
+
+    vector.vectorCopy(returnVec)
   }
 
-  def vectorMultiply(vector1: BaseLshVector, vector2: BaseLshVector):BaseLshVector = {
-    val minSize = math.min(vector1.size, vector2.size)
+  def vectorMultiply[R <: BaseLshVector[R], S <: BaseLshVector[S]](vector: R, vector2: S): R = {
+    val minSize = math.min(vector.size, vector2.size)
     val returnVec = Array.ofDim[Double](minSize)
     var idx = 0
+
     while(idx < minSize){
-      returnVec(idx) = vector1(idx) * vector2(idx)
+      returnVec(idx) = vector(idx) * vector2(idx)
       idx += 1
     }
-    LshVector(returnVec)
+
+    vector.vectorCopy(returnVec)
   }
 
-  def vectorSum(vector1: BaseLshVector, vector2: BaseLshVector):BaseLshVector = {
-    val minSize = math.min(vector1.size, vector2.size)
+  def vectorSum[R <: BaseLshVector[R], S <: BaseLshVector[S]](vector: R, vector2: S): R = {
+    val minSize = math.min(vector.size, vector2.size)
+
     val returnVec = Array.ofDim[Double](minSize)
     var idx = 0
+
     while(idx < minSize){
-      returnVec(idx) = vector1(idx) + vector2(idx)
+      returnVec(idx) = vector(idx) + vector2(idx)
       idx += 1
     }
-    LshVector(returnVec)
+
+    vector.vectorCopy(returnVec)
   }
 
-  def dot[@specialized(Double, Int, Long) T](vector1:Array[T], vector2:Array[T])(implicit num: Numeric[T]): T = {
-    val minSize = math.min(vector1.length, vector2.length)
-    var sum = num.zero
+  def dot(v: Array[Double], v2: Array[Double]): Double = {
+    val minSize = math.min(v.length, v2.length)
+
+    var sum = 0.0
     var idx = 0
+
     while(idx < minSize){
-      val times = num.times(vector1(idx), vector2(idx))
-      sum = num.plus(sum, times)
+      val times = v(idx) * v2(idx)
+      sum += times
       idx += 1
     }
+
     sum
   }
 
-  def magnitude(vec: BaseLshVector) = { //math.sqrt(vectorFn(vector, square).sum)
+  def vectorDot[T, U](v: BaseLshVector[T], v2: BaseLshVector[U]): Double =
+    dot(v.vector, v2.vector)
+
+  def magnitude[R](vec: BaseLshVector[R]): Double = {
     var sum = 0.0
     var idx = 0
+
     while(idx < vec.size){
       sum += vec(idx) * vec(idx)
       idx += 1
     }
+
     math.sqrt(sum)
   }
 
-  def normalize[U <: LshVector](vector: U): LshVector = divide(vector, magnitude(vector))
+  def normalize[R <: BaseLshVector[R]](vector: R): R =
+    divide(vector, magnitude(vector))
+
+  def identity[R <: BaseLshVector[R]](vector: R): R = vector
 }

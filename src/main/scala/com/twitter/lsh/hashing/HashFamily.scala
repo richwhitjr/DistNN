@@ -10,5 +10,5 @@ trait HashFamily {
   val familyId = -1  // Should be unique to each Family.
   def createHasher(hashTableId: Int, hashFunctionId: Int): Hasher
   def combine(hashes: Array[Int]): Int
-  def score(keyVec: BaseLshVector, candidateVec: BaseLshVector): Double
+  def score[U <: BaseLshVector[U], T <: BaseLshVector[T]](keyVec: U, candidateVec: T): Double
 }

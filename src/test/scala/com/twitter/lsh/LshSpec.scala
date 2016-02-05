@@ -2,8 +2,7 @@ package com.twitter.lsh
 
 import com.twitter.lsh.vector._
 import com.twitter.util.Await
-import org.specs._
-import org.specs.mock.Mockito
+import org.scalatest.{Matchers, WordSpec}
 
 object LshSetup {
   val vectors = Array(
@@ -12,22 +11,21 @@ object LshSetup {
     IndexedVector(3L, LshVector(Array(19.0, 22.0, 13.0, 13.0)))
   )
 
-  val lsh = LshEuclideanDoubleVector.withVectors(LshParams(1, 5, 1.0, 4), vectors)
+  val lsh = EuclideanLsh.build(LshParams(1, 5, 1.0, 4), vectors)
 }
 
-class LshSpec extends Specification with Mockito {
+class EuclideanLshTest extends WordSpec with Matchers {
   import com.twitter.lsh.LshSetup._
 
   "Lsh Memory" should {
     val topN = 10
 
     val firstVector = vectors.head
-    val (_, lshResults) = Await.result(lsh.query(firstVector.vector))
-    println(lshResults.toString())
-    val scoredResults = lsh.scoreQuery(firstVector.vector, lshResults, topN)
+    val scoredResults = Await.result(lsh.queryVector(firstVector.vector, topN))
 
     "match results" in {
-      scoredResults.size mustEqual 1
+      assert(scoredResults.size == 1)
+      assert(scoredResults.head.key == 1L)
     }
   }
 }

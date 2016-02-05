@@ -1,7 +1,5 @@
 package com.twitter.lsh.hashing
 
-import java.util.Arrays
-
 import com.twitter.logging.Logger
 import com.twitter.lsh.vector.{BaseLshVector, VectorMath}
 
@@ -22,9 +20,6 @@ class EuclideanHashFamily(radius: Double, dimension: Int) extends HashFamily wit
     for (i <- 0 until dimension)
       randomProjection.update(i, rand.nextGaussian)
 
-    log.debug("Euclidean Hasher: tableId: %d, hashFunctionId: %d, offset: %d, projection: %s",
-      hashTableId, hashFunctionId, offset, randomProjection.reduce(_ + _))
-
     def hash(vector: Array[Double]): Int = {
       scala.math.round((VectorMath.dot(vector, randomProjection)+offset)/radius).toInt
     }
@@ -34,8 +29,8 @@ class EuclideanHashFamily(radius: Double, dimension: Int) extends HashFamily wit
     new EuclideanHasher(hashTableId, hashFunctionId, radius, dimension)
   }
 
-  def combine(hashes: Array[Int]): Int = Arrays.hashCode(hashes)
+  def combine(hashes: Array[Int]): Int = java.util.Arrays.hashCode(hashes)
 
-  def score(keyVec: BaseLshVector, candidateVec: BaseLshVector): Double =
-    VectorMath.dot(keyVec.toDoubleVec, candidateVec.toDoubleVec)
+  def score[U <: BaseLshVector[U], T <: BaseLshVector[T]](keyVec: U, candidateVec: T): Double =
+    VectorMath.vectorDot(keyVec, candidateVec)
 }

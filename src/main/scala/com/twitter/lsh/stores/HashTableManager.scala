@@ -13,21 +13,21 @@ import com.twitter.util.Future
  * most distributed systems.
  */
 
-trait HashTableManager[T] {
-  def update(oldKeyVecs: Map[T, BaseLshVector], newKeyVecs: Map[T, (BaseLshVector, BaseLshVector)]):  Future[Map[(TableIdentifier, Int), Future[Unit]]]
-  def query(vecs: Set[BaseLshVector]): Future[Map[T, Option[BaseLshVector]]]
+trait HashTableManager[T, U <: BaseLshVector[U]] {
+  def update(oldKeyVecs: Map[T, U], newKeyVecs: Map[T, (U, U)]):  Future[Map[(TableIdentifier, Int), Future[Unit]]]
+  def query(vecs: Set[U]): Future[Map[T, Option[U]]]
 }
 
-abstract class HashTableManagerStore[T](family: HashFamily,
-                                        numHashTables: Int,
-                                        numHashes: Int)
-  extends HashTableManager[T] {
+abstract class HashTableManagerStore[T, U <: BaseLshVector[U]](family: HashFamily,
+                                                               numHashTables: Int,
+                                                               numHashes: Int)
+  extends HashTableManager[T, U] {
   lazy val log = Logger("HashTableManager")
 
   val hashTable: MergeableStore[(TableIdentifier, Int), Set[T]]
 
   val tables = for (i <- 1 to numHashTables)
-    yield new HashTable[T](i, numHashes, hashTable, family)
+    yield new HashTable[T, U](i, numHashes, hashTable, family)
 
   /**
    * Delete takes a set of keys and their corresponding vectors and deletes them from all hashtables,
@@ -84,7 +84,7 @@ abstract class HashTableManagerStore[T](family: HashFamily,
     } else (oldKeys, newKeys)
   }
 
-  def update(deleteVecs: Map[T, BaseLshVector], insertVecs: Map[T, (BaseLshVector, BaseLshVector)]):
+  def update(deleteVecs: Map[T, U], insertVecs: Map[T, (U, U)]):
     Future[Map[(TableIdentifier, Int), Future[Unit]]]= {
 
     val delKeys = tables.flatMap(_.getKeys(deleteVecs)).toMap
@@ -101,7 +101,7 @@ abstract class HashTableManagerStore[T](family: HashFamily,
     * @param vecs - Set[Normalized LshVectors]
    * @return - Set(Objects similar to Key1) U ... U Set(Objects similar to KeyN)
    */
-  def query(vecs: Set[BaseLshVector]): Future[Map[T, Option[BaseLshVector]]] = {
+  def query(vecs: Set[U]): Future[Map[T, Option[U]]] = {
     val items = tables.flatMap(_.getKeys(vecs)).toSet
     FutureOps.mapCollect(hashTable.multiGet(items))
       .onFailure { throwable => log.error("hashTable.multiGet(%s) failed: %s", items, throwable)}

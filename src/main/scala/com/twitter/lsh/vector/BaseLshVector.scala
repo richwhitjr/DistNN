@@ -1,17 +1,19 @@
 package com.twitter.lsh.vector
 
-import java.util
-
 import com.twitter.algebird._
 
 /**
  * An LshVector must permit the operations listed below.
  */
-trait BaseLshVector {
+trait BaseLshVector[T] {
   def size: Int
-  def apply(index: Int): Double  // Return Vector[index]
-  def toDoubleVec: Array[Double]
-  override def hashCode:Int = util.Arrays.hashCode(toDoubleVec)
+  def apply(index: Int): Double
+
+  def vector: Array[Double]
+
+  def vectorCopy(vec: Array[Double]): T
+
+  override def hashCode:Int = java.util.Arrays.hashCode(vector)
 }
 
 /**

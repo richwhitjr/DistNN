@@ -23,13 +23,14 @@ import com.twitter.util.Future
 
 /**
  * Encapsulates parameters necessary to construct an LSH instance.
-  *
-  * @param hashTables - # of hash tables used to back LSH (used by hashTableManager)
+ * @param hashTables - # of hash tables used to back LSH (used by hashTableManager)
  * @param hashFunctions - # of hash functions used by each hash table (used by hashTableManager)
  * @param radius - Expected "spread" of the vectors (used by HashFamily)
  * @param dimensions - # of dimensions in each vector (used by HashFamily)
  */
 case class LshParams(hashTables: Int, hashFunctions: Int, radius: Double, dimensions: Int)
+
+case class ScoredResult[T](key: T, score: Double)
 
 /**
  * See above. Note that two different types of Vectors are used:
@@ -39,59 +40,43 @@ case class LshParams(hashTables: Int, hashFunctions: Int, radius: Double, dimens
  * Hash Vector - This is the normalized vector which is used for hashing.
  *   In practice, Hash Vector is probably DoubleLshVector and will be a normalized version
  *   of Raw Vector.
-  *
-  * @param family - The type of hashing to use. Examples are Euclidean & Manhattan-distance based.
- * @param normalize - Function to convert Raw vector to Hash Vector
+ *
+ * @param family - The type of hashing to use. Examples are Euclidean & Manhattan-distance based.
  * @param vectorStore - StoreHaus Store for storing the vectors.
  * @param hashTableManager - Manager for storing the hashes. Usually also a Storehaus Store
+ * @param normFunction - When passed all vectors will be normalized by this function
  * @tparam T - Item type to be stored
  * @tparam U - Vector type of Raw Vector
- * @tparam V - Vector type of Hash Vector
  */
-class Lsh[T, U <: BaseLshVector, V <: BaseLshVector](family: HashFamily,
-                                                     normalize: U => V,
-                                                     vectorStore: MergeableStore[T, U],
-                                                     hashTableManager: HashTableManager[T])
-                                                    (implicit val uMonoid: Monoid[U]) {
+class Lsh[T, U <: BaseLshVector[U]](family: HashFamily,
+                                    vectorStore: MergeableStore[T, U],
+                                    hashTableManager: HashTableManager[T, U],
+                                    normFunction: U => U)
+                                    (implicit val uMonoid: Monoid[U]) {
   val log = Logger("Lsh")
 
-  def update(keys: Set[T], value: U) = {
+  def addVector(keys: Set[T], value: U) = {
     FutureOps.mapCollect(vectorStore.multiGet(keys))
       .onSuccess { vecs =>
         val newVecs = vecs.mapValues(v => Some(if(v.isDefined) uMonoid.plus(v.get, value) else value))
         FutureOps.mapCollect(vectorStore.multiPut(newVecs))
           .onSuccess { _ =>
-            val normOldVecs = vecs.filter(_._2.isDefined).mapValues(v => normalize(v.get))
-            val normNewVecs = newVecs.mapValues(nv => (nv.get, normalize(nv.get)))
+            val normOldVecs = vecs.filter(_._2.isDefined).mapValues(v => normFunction(v.get))
+            val normNewVecs = newVecs.mapValues(nv => (nv.get, normFunction(nv.get)))
             hashTableManager.update(normOldVecs, normNewVecs)
           }
         }
   }
-  /**
-   * Given a normalized vector (V), returns matching keys (T) and their raw vectors (U).
-   * Used internally by queryNormalizedVector but useful if raw vectors are wanted.
-    *
-    * @param vector - Normalized vector of type V (usually LshVector)
-   * @return Map[keyObject -> Option[rawVector]]
-    **/
-  def queryNormalizedVectorRawResults(vector: V): Future[Map[T, Option[U]]] = {
-    val vec: BaseLshVector = vector
-    hashTableManager.query(Set(vec)).flatMap{ candidates =>
+
+  protected def queryLshRawResults(vector: U): Future[Map[T, Option[U]]] = {
+    hashTableManager.query(Set(vector)).flatMap{ candidates =>
       val (foundVecs, missingVecs) = candidates.partition { case (k, v) => v.isDefined}
-      val mappedFoundVecs = foundVecs.mapValues{vec =>
-          vec.get match {
-            case u: U => Some(u)
-            case _ => throw new ClassCastException
-          }
-      }
       if (missingVecs.nonEmpty) {
         val splitMissing = missingVecs.keySet.grouped(5000).toSeq
           .map(set => FutureOps.mapCollect(vectorStore.multiGet(set))(FutureCollector.bestEffort))
 
-        Future.collect(splitMissing).map { list =>
-          list.reduce(_ ++ _) ++ mappedFoundVecs
-        }
-      } else Future(mappedFoundVecs)
+        Future.collect(splitMissing).map(_.reduce(_ ++ _) ++ foundVecs)
+      } else Future(foundVecs)
     }
   }
 
@@ -101,38 +86,38 @@ class Lsh[T, U <: BaseLshVector, V <: BaseLshVector](family: HashFamily,
     * @param vector - Normalized vector of type V (usually DoubleLshVector)
    * @return (inputVector, Map[keyObject -> normalizedVector])
    */
-  def queryNormalizedVector(vector: V): Future[(V, Map[T, V])] =
-    queryNormalizedVectorRawResults(vector).map { candidateVectorMap =>
-      (vector, candidateVectorMap.collect { case (k, Some(u)) => (k, normalize(u)) })
+  protected def queryLshCandidatesStore(vector: U): Future[(U, Map[T, U])] =
+    queryLshRawResults(vector).map { candidateVectorMap =>
+      (vector, candidateVectorMap.collect { case (k, Some(u)) => (k, normFunction(u)) })
     }
 
-  /**
-    * Given a raw vector (U), returns matching keys (T) and their normalized vectors (V).
-    *
-    * @param vector - Raw vector of type U
-   * @return (inputVector, Map[keyObject -> normalizedVector])
-   */
-  def query(vector: U): Future[(U, Map[T, V])] =
-    queryNormalizedVector(normalize(vector)).map(x => (vector, x._2))
-
-  /**
-   * Given a key (T), returns matching keys (T) and their normalized vectors (V).
-    *
-    * @param key - Key object of type T
-   * @return ((inputKey, normalizedVector (if found)), Map[keyObject -> normalizedVector])
-   */
-  def query(key: T):Future[((T, Option[V]), Map[T, V])] =
-    vectorStore.get(key).flatMap { optKeyVec => optKeyVec.map { keyVec =>
-      query(keyVec).map { case (vec, map) => ((key, Some(normalize(vec))), map) }
-    }.getOrElse(Future((key, None), Map[T, V]()))}
-
   // This helper method is generally not for public use. It is used internally and by tests.
-  def scoreQuery(vector: V, candidateMap: Map[T, V], maxResults:Int) =
+  protected def scoreQuery(vector: U, candidateMap: Map[T, U], maxResults:Int) =
     candidateMap.mapValues{vec => family.score(vector, vec)}
       .toList
       .sortBy(_._2)
       .reverse
       .take(maxResults)
+      .map{case(key, score) => ScoredResult(key, score)}
+
+  /**
+    * Given a key (T), returns matching keys (T) and their normalized vectors.
+    * @param key - Key object of type T
+    * @return ((inputKey, normalizedVector (if found)), Map[keyObject -> normalizedVector])
+    */
+  protected def queryKeyRaw(key: T):Future[((T, Option[U]), Map[T, U])] =
+    vectorStore.get(key).flatMap { optKeyVec => optKeyVec.map { keyVec =>
+      queryLshCandidates(keyVec).map { case (vec, map) => ((key, Some(normFunction(vec))), map) }
+    }.getOrElse(Future((key, None), Map[T, U]()))}
+
+  /**
+    * Given a raw vector (U), returns matching keys (T) and their normalized vectors.
+    *
+    * @param vector - Raw vector of type U
+    * @return (inputVector, Map[keyObject -> normalizedVector])
+    */
+  def queryLshCandidates(vector: U): Future[(U, Map[T, U])] =
+    queryLshCandidatesStore(normFunction(vector)).map(x => (vector, x._2))
 
   /**
    * Given a key (T), returns the top N matches & scores, based on hash family scoring
@@ -141,20 +126,18 @@ class Lsh[T, U <: BaseLshVector, V <: BaseLshVector](family: HashFamily,
    * @param maxResults - max # of matches to return
    * @return - Matching keys and their scores in descending score order.
    */
-  def scoredQuery(key: T, maxResults: Int):Future[List[(T, Double)]] =
-    query(key).map{case ((_, keyVec), candidateMap) =>
+  def queryKey(key: T, maxResults: Int): Future[List[ScoredResult[T]]] =
+    queryKeyRaw(key).map{case ((_, keyVec), candidateMap) =>
       keyVec.map(kv => scoreQuery(kv, candidateMap, maxResults)).getOrElse(Nil)
     }
 
   /**
-   * Given a normalized vector (V), returns top N matches & scores, based on hash family scoring
+   * Given a vector (V), returns top N matches & scores, based on hash family scoring
     *
-    * @param vector - Normalized vector of type V
+   * @param vector - Normalized vector of type V
    * @param maxResults - max # of matches to return
    * @return - Matching keys and their scores in descending score order.
    */
-  def scoredNormalizedVector(vector: V, maxResults: Int):Future[List[(T, Double)]] =
-    queryNormalizedVector(vector).map{case (keyVec, candidateMap) =>
-      scoreQuery(keyVec, candidateMap, maxResults)
-    }
+  def queryVector(vector: U, maxResults: Int): Future[List[ScoredResult[T]]] =
+    queryLshCandidates(vector).map{case (keyVec, candidateMap) => scoreQuery(keyVec, candidateMap, maxResults)}
 }
