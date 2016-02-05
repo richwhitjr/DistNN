@@ -20,12 +20,27 @@ class EuclideanLshTest extends WordSpec with Matchers {
   "Lsh Memory" should {
     val topN = 10
 
-    val firstVector = vectors.head
-    val scoredResults = Await.result(lsh.queryVector(firstVector.vector, topN))
-
     "match results" in {
+      val firstVector = vectors.head
+      val scoredResults = Await.result(lsh.queryVector(firstVector.vector, topN))
+
       assert(scoredResults.size == 1)
       assert(scoredResults.head.key == 1L)
+    }
+
+    "match results by key" in {
+      val scoredResults = Await.result(lsh.queryKey(1L, topN))
+
+      assert(scoredResults.size == 1)
+      assert(scoredResults.head.key == 1L)
+    }
+
+    "get candidates from lsh" in {
+      val firstVector = vectors.head
+      val (_, lshResults) = Await.result(lsh.queryLshCandidates(firstVector.vector))
+
+      assert(lshResults.size == 1)
+      assert(lshResults.keySet.contains(1L))
     }
   }
 }

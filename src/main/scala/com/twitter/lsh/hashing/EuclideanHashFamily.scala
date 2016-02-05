@@ -11,14 +11,16 @@ class EuclideanHashFamily(radius: Double, dimension: Int) extends HashFamily wit
 
   class EuclideanHasher(hashTableId: Int, hashFunctionId: Int, radius: Double, dimension: Int) extends Hasher with Serializable {
     lazy val log = Logger("Euclidean Hasher")
+
     val rand = new Random(hashTableId*10000 + hashFunctionId)
     //DO NOT REMOVE :: http://stackoverflow.com/questions/12282628/why-are-initial-random-numbers-similar-when-using-similar-seeds
     rand.nextInt()
 
     val offset = rand.nextInt(radius.toInt)
     val randomProjection = Array.ofDim[Double](dimension)
-    for (i <- 0 until dimension)
+    for (i <- 0 until dimension) {
       randomProjection.update(i, rand.nextGaussian)
+    }
 
     def hash(vector: Array[Double]): Int = {
       scala.math.round((VectorMath.dot(vector, randomProjection)+offset)/radius).toInt
