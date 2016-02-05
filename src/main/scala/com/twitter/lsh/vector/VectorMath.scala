@@ -62,7 +62,7 @@ object VectorMath {
   }
 
   def dot[@specialized(Double, Int, Long) T](vector1:Array[T], vector2:Array[T])(implicit num: Numeric[T]): T = {
-    val minSize = math.min(vector1.size, vector2.size)
+    val minSize = math.min(vector1.length, vector2.length)
     var sum = num.zero
     var idx = 0
     while(idx < minSize){

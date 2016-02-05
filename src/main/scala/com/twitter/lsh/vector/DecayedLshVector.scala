@@ -35,7 +35,6 @@ object DecayedLshVector {
   implicit def doubleArraySpace =
     VectorSpace.from[Double, Array]{(s, array) => array.map(Ring.times(s, _)).toArray}
 
-  // TODO(acs): I'm not sure how inefficient this is. If it is, define metric in terms of Array.
   implicit def doubleArrayMetric = new Metric[Array[Double]] {
     val iDMetric = Metric.iterableMetric[Double]
     def apply(v1: Array[Double], v2: Array[Double]) = iDMetric.apply(v1.toSeq, v2.toSeq)
@@ -74,7 +73,7 @@ object DecayedLshVector {
   DecayedLshVector => Array[Double] = {
     (vector: DecayedLshVector) => {
       decayedVectorMonoid.plus(vector,
-        new DecayedLshVector(Array.ofDim[Double](vector.vector.vector.size), time, halfLife)).toDoubleVec
+        new DecayedLshVector(Array.ofDim[Double](vector.vector.vector.length), time, halfLife)).toDoubleVec
     }
   }
 }
@@ -92,7 +91,7 @@ class DecayedLshVector(in: DecayedVector[Array]) extends BaseLshVector {
     this(DecayedVector.buildWithHalflife(in, time, halfLife))
 
   val vector = in
-  override def size = vector.vector.size
+  override def size = vector.vector.length
   override def apply(index:Int) = vector.vector(index)
   override def toDoubleVec = vector.vector
 }

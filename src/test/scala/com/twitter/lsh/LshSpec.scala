@@ -21,9 +21,10 @@ class LshSpec extends Specification with Mockito {
   "Lsh Memory" should {
     val topN = 10
 
-    val firstVector = vectors(0)
-    val lshResults = Await.result(lsh.query(firstVector.vector))
-    val scoredResults = lsh.scoreQuery(firstVector.vector, lshResults._2, topN)
+    val firstVector = vectors.head
+    val (_, lshResults) = Await.result(lsh.query(firstVector.vector))
+    println(lshResults.toString())
+    val scoredResults = lsh.scoreQuery(firstVector.vector, lshResults, topN)
 
     "match results" in {
       scoredResults.size mustEqual 1

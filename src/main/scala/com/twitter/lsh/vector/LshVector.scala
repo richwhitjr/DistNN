@@ -28,7 +28,7 @@ object LshVector {
  * @param vector - The Array of Doubles to wrap.
  */
 case class LshVector(vector: Array[Double]) extends BaseLshVector {
-  def size = vector.size
+  def size = vector.length
   def apply(index:Int) = vector(index)
   def toDoubleVec = vector
 }

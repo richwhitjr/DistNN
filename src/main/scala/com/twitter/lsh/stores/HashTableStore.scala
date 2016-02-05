@@ -14,9 +14,8 @@ class BaseHashTable[T](id: Int, numHashes: Int, family: HashFamily) {
   def hash(vector: BaseLshVector): Int =
     family.combine(hashFunctions.map(_.hash(vector.toDoubleVec)).toArray)
 
-  def getKeys(vecs: Set[BaseLshVector]): Set[(TableIdentifier, Int)] = {
+  def getKeys(vecs: Set[BaseLshVector]): Set[(TableIdentifier, Int)] =
     vecs.map(vec => (tableId, hash(vec)))
-  }
 }
 
 /**
@@ -31,6 +30,7 @@ class BaseHashTable[T](id: Int, numHashes: Int, family: HashFamily) {
  */
 class CachingHashTable[T](id: Int, numHashes: Int, family: HashFamily, size: Int = 98300) // ~2^17*0.75
   extends BaseHashTable[T](id, numHashes, family) {
+
   val hashCache = new SynchronizedLruMap[BaseLshVector, Int](size)
 
   /**
@@ -40,7 +40,6 @@ class CachingHashTable[T](id: Int, numHashes: Int, family: HashFamily, size: Int
    */
   override def hash(vector: BaseLshVector): Int = {
     hashCache.getOrElse(vector, {
-      // If not in cache, compute, store, and return
       val hashVal = family.combine(hashFunctions.map(_.hash(vector.toDoubleVec)).toArray)
       hashCache.put(vector, hashVal)
       hashVal
@@ -71,16 +70,16 @@ class HashTable[T](id: Int, numHashes: Int,
                    store: MergeableStore[(TableIdentifier, Int), Set[T]],
                    family: HashFamily) extends CachingHashTable[T](id, numHashes, family)
   with StoringHashTable[T] {
+
   lazy val log = Logger(s"HashTable[$id]")
   /**
    * Given a set of Keys and their vectors, returns (tableIdentifier, hash of vector) -> Key
    * (Actually the returned value is Set(Key) so that it can be used for .merge and Set difference)
    * The returned maps allow .multi(Get|Put|Merge) operations on memcache.
    * @param keyVecs - Map(Key -> Normalized Vector)
-   * @tparam T - Key type
    * @return - Map((Table Identifier, Hashcode) -> Set(Key))
    */
-  def getKeys[T](keyVecs: Map[T, BaseLshVector]): Map[(TableIdentifier, Int), Set[T]] = {
+  def getKeys(keyVecs: Map[T, BaseLshVector]): Map[(TableIdentifier, Int), Set[T]] = {
     keyVecs.mapValues(vec => (tableId, hash(vec))).map(_.swap).mapValues(Set(_))
   }
 
@@ -91,8 +90,12 @@ class HashTable[T](id: Int, numHashes: Int,
   def delete(keyVecs: Map[T, BaseLshVector]) = {
     val doubleKeyToStringMap = keyVecs.mapValues(vec => (tableId, hash(vec))).map(_.swap)
     FutureOps.mapCollect(store.multiGet(doubleKeyToStringMap.keySet))
-      .map(results => store.multiPut(results.filter(_._2.isDefined).map{case (k,v) =>
-      (k, Some(v.get -- Set(doubleKeyToStringMap.get(k).get)))}))
+      .map(results =>
+        store.multiPut(results.collect{case (k, Some(v)) =>
+            (k, Some(v -- Set(doubleKeyToStringMap.get(k).get)))
+          }
+        )
+      )
   }
 
   def query(vector: BaseLshVector): Future[Option[Set[T]]] = {

@@ -11,6 +11,7 @@ import com.twitter.storehaus.algebra.MergeableStore
  */
 class HashTableManagerMemory[T](family: HashFamily, numHashTables: Int, numHashes: Int)
   extends HashTableManagerStore[T](family, numHashTables, numHashes){
+
   override val hashTable = MergeableStore.fromStore(new JMapStore[(TableIdentifier, Int), Set[T]])
 }
 
