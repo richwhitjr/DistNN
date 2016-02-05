@@ -1,8 +1,7 @@
 # Locality Sensitive Hashing Library on Distributed Stores
 
 This library implements the LSH algorithm in a way that the hash tables can be stored in distributed systems such as Redis or Memcache.
-
-It also comes with an option to store everything in memory.  Makes heavy use of the Storehaus library to abstract the data stores.
+For smaller use cases it can also store the vectors and hashed in memory.
 
 To read more about the algorithm see http://en.wikipedia.org/wiki/Locality-sensitive_hashing
 
@@ -33,11 +32,12 @@ Below is an example that constructs the LSH table and queries it for one vector.
       dimensions = 4
     )
 
-  val lsh = LshEuclideanDoubleVector.withVectors(lshParams, vectors)
+  val lsh = EuclideanLshTest.build(lshParams, vectors)
 
-  val firstVector = vectors(0)
-  val (_, lshResults) = Await.result(lsh.query(firstVector.vector))
-  val scoredResults = lsh.scoreQuery(firstVector.vector, lshResults, 10)
+  val firstVector = vectors.head
+  val scoredResults = Await.result(lsh.queryVector(firstVector.vector, maxResults = 10))
 
-  scoredResults.foreach(println)
+  val firstResult = scoreResults.head
+  println("Key " + firstResult.key)
+  println("Score " + firstResult.score)
 ```

@@ -4,7 +4,7 @@ import com.twitter.lsh.hashing.EuclideanHashFamily
 import com.twitter.lsh.stores.{HashTableManagerMemory, VectorStoreMemory}
 import com.twitter.lsh.vector.{VectorMath, LshVector}
 
-case class IndexedVector(id:Long, vector:LshVector)
+case class IndexedVector(id: Long, vector: LshVector)
 
 /**
   * LSH Builder that uses Euclidean Distance on Regular Vectors
