@@ -14,7 +14,7 @@ import com.twitter.util.Future
  */
 
 trait HashTableManager[T, U <: BaseLshVector[U]] {
-  def update(oldKeyVecs: Map[T, U], newKeyVecs: Map[T, (U, U)]):  Future[Map[(TableIdentifier, Int), Future[Unit]]]
+  def update(oldKeyVecs: Map[T, U], newKeyVecs: Map[T, U]):  Future[Map[(TableIdentifier, Int), Future[Unit]]]
   def query(vecs: Set[U]): Future[Map[T, Option[U]]]
 }
 
@@ -22,21 +22,22 @@ abstract class HashTableManagerStore[T, U <: BaseLshVector[U]](family: HashFamil
                                                                numHashTables: Int,
                                                                numHashes: Int)
   extends HashTableManager[T, U] {
+
   lazy val log = Logger("HashTableManager")
 
-  val hashTable: MergeableStore[(TableIdentifier, Int), Set[T]]
+  protected val hashTable: MergeableStore[(TableIdentifier, Int), Set[T]]
 
-  val tables = for (i <- 1 to numHashTables)
-    yield new HashTable[T, U](i, numHashes, hashTable, family)
+  protected val tables = 1.to(numHashTables).map{ i =>
+    new HashTable[T, U](i, numHashes, hashTable, family)
+  }
 
   /**
-   * Delete takes a set of keys and their corresponding vectors and deletes them from all hashtables,
-   * removing them from the Set[Key Objects] which they mapped to.
-    *
-    * @param keyVecs - Map[Key -> Vector]. This vector is expected to be normalized.
-   */
-
-  def deleteFromTables(keyVecs: Map[(TableIdentifier, Int), Set[T]]) = {
+  * Delete takes a set of keys and their corresponding vectors and deletes them from all hashtables,
+  * removing them from the Set[Key Objects] which they mapped to.
+  *
+  * @param keyVecs - Map[Key -> Vector]. This vector is expected to be normalized.
+  */
+  protected def deleteFromTables(keyVecs: Map[(TableIdentifier, Int), Set[T]]) = {
     FutureOps.mapCollect(hashTable.multiGet(keyVecs.keySet))
       .map { results =>
         hashTable.multiPut(
@@ -46,20 +47,20 @@ abstract class HashTableManagerStore[T, U <: BaseLshVector[U]](family: HashFamil
       }
   }
 
-    /**
-   * Update takes a set of keys and their corresponding vectors and adds them to all hashtables.
-   * This will add the key to the Set[Key Objects] to which it maps. If the set does not exist, it
-   * will be created.
-      *
-      * @param keyVecs - Map[Key -> Vector]. This vector is expected to be normalized.
-   */
-
-  def updateTables(keyVecs: Map[(TableIdentifier, Int), Set[T]]):Future[Map[(TableIdentifier, Int), Future[Unit]]] = {
+  /**
+  * Update takes a set of keys and their corresponding vectors and adds them to all hashtables.
+  * This will add the key to the Set[Key Objects] to which it maps. If the set does not exist, it
+  * will be created.
+  *
+  * @param keyVecs - Map[Key -> Vector]. This vector is expected to be normalized.
+  */
+  protected def updateTables(keyVecs: Map[(TableIdentifier, Int), Set[T]]):Future[Map[(TableIdentifier, Int), Future[Unit]]] = {
     FutureOps.mapCollect(hashTable.multiMerge(keyVecs).mapValues(_ => Future(Future())))
   }
 
-  def removeIntersectionItems(original: Map[(TableIdentifier, Int), Set[T]],
-                              intersection: Map[(TableIdentifier, Int), Set[T]]) = {
+  protected def removeIntersectionItems(original: Map[(TableIdentifier, Int), Set[T]],
+                                        intersection: Map[(TableIdentifier, Int), Set[T]]) = {
+
     original.flatMap { case (k, v) =>
         val clean = intersection.get(k).map(x => v &~ x)
         if (clean.isDefined) {
@@ -69,7 +70,7 @@ abstract class HashTableManagerStore[T, U <: BaseLshVector[U]](family: HashFamil
     }
   }
 
-  def cleanKeys(oldKeys: Map[(TableIdentifier, Int), Set[T]],
+  protected def cleanKeys(oldKeys: Map[(TableIdentifier, Int), Set[T]],
                 newKeys: Map[(TableIdentifier, Int), Set[T]]):
   (Map[(TableIdentifier, Int), Set[T]], Map[(TableIdentifier, Int), Set[T]]) = {
 
@@ -84,11 +85,11 @@ abstract class HashTableManagerStore[T, U <: BaseLshVector[U]](family: HashFamil
     } else (oldKeys, newKeys)
   }
 
-  def update(deleteVecs: Map[T, U], insertVecs: Map[T, (U, U)]):
+  def update(deleteVecs: Map[T, U], insertVecs: Map[T, U]):
     Future[Map[(TableIdentifier, Int), Future[Unit]]]= {
 
     val delKeys = tables.flatMap(_.getKeys(deleteVecs)).toMap
-    val insKeys = tables.flatMap(_.getKeys(insertVecs.mapValues(_._2))).toMap
+    val insKeys = tables.flatMap(_.getKeys(insertVecs)).toMap
     val (cleanDelKeys, cleanInsKeys) = cleanKeys(delKeys, insKeys)
 
     deleteFromTables(cleanDelKeys).onSuccess { _ => updateTables(cleanInsKeys)}

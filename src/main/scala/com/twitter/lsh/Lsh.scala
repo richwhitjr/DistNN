@@ -61,7 +61,7 @@ class Lsh[T, U <: BaseLshVector[U]](family: HashFamily,
         FutureOps.mapCollect(vectorStore.multiPut(newVecs))
           .onSuccess { _ =>
             val normOldVecs = vecs.filter(_._2.isDefined).mapValues(v => normFunction(v.get))
-            val normNewVecs = newVecs.mapValues(nv => (nv.get, normFunction(nv.get)))
+            val normNewVecs = newVecs.mapValues(nv => normFunction(nv.get))
             hashTableManager.update(normOldVecs, normNewVecs)
           }
         }

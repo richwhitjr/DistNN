@@ -79,13 +79,11 @@ class HashTable[T, U <: BaseLshVector[U]](id: Int, numHashes: Int,
    * @param keyVecs - Map(Key -> Normalized Vector)
    * @return - Map((Table Identifier, Hashcode) -> Set(Key))
    */
-  def getKeys(keyVecs: Map[T, U]): Map[(TableIdentifier, Int), Set[T]] = {
+  def getKeys(keyVecs: Map[T, U]): Map[(TableIdentifier, Int), Set[T]] =
     keyVecs.mapValues(vec => (tableId, hash(vec))).map(_.swap).mapValues(Set(_))
-  }
 
-  def add(keyVecs: Map[T, U]) = {
+  def add(keyVecs: Map[T, U]) =
     store.multiMerge(keyVecs.map(_.swap).map{case(k,v) => ((tableId, hash(k)), Set(v))})
-  }
 
   def delete(keyVecs: Map[T, U]) = {
     val doubleKeyToStringMap = keyVecs.mapValues(vec => (tableId, hash(vec))).map(_.swap)
@@ -98,7 +96,6 @@ class HashTable[T, U <: BaseLshVector[U]](id: Int, numHashes: Int,
       )
   }
 
-  def query(vector: U): Future[Option[Set[T]]] = {
+  def query(vector: U): Future[Option[Set[T]]] =
     store.get((tableId, hash(vector)))
-  }
 }
