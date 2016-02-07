@@ -12,9 +12,7 @@ class EuclideanHashFamily(radius: Double, dimension: Int) extends HashFamily wit
   class EuclideanHasher(hashTableId: Int, hashFunctionId: Int, radius: Double, dimension: Int) extends Hasher with Serializable {
     lazy val log = Logger("Euclidean Hasher")
 
-    val rand = new Random(hashTableId*10000 + hashFunctionId)
-    //DO NOT REMOVE :: http://stackoverflow.com/questions/12282628/why-are-initial-random-numbers-similar-when-using-similar-seeds
-    rand.nextInt()
+    val rand = randomGenerator(hashTableId*10000 + hashFunctionId)
 
     val offset = rand.nextInt(radius.toInt)
     val randomProjection = Array.ofDim[Double](dimension)
@@ -34,5 +32,5 @@ class EuclideanHashFamily(radius: Double, dimension: Int) extends HashFamily wit
   def combine(hashes: Array[Int]): Int = java.util.Arrays.hashCode(hashes)
 
   def score[U <: BaseLshVector[U], T <: BaseLshVector[T]](keyVec: U, candidateVec: T): Double =
-    VectorMath.vectorDot(keyVec, candidateVec)
+    VectorMath.euclideanDistance(keyVec, candidateVec)
 }

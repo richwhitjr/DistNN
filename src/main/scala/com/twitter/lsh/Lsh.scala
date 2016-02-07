@@ -25,10 +25,9 @@ import com.twitter.util.Future
  * Encapsulates parameters necessary to construct an LSH instance.
  * @param hashTables - # of hash tables used to back LSH (used by hashTableManager)
  * @param hashFunctions - # of hash functions used by each hash table (used by hashTableManager)
- * @param radius - Expected "spread" of the vectors (used by HashFamily)
  * @param dimensions - # of dimensions in each vector (used by HashFamily)
  */
-case class LshParams(hashTables: Int, hashFunctions: Int, radius: Double, dimensions: Int)
+case class LshParams(hashTables: Int, hashFunctions: Int, dimensions: Int)
 
 case class ScoredResult[T](key: T, score: Double)
 
@@ -96,7 +95,6 @@ class Lsh[T, U <: BaseLshVector[U]](family: HashFamily,
     candidateMap.mapValues{vec => family.score(vector, vec)}
       .toList
       .sortBy(_._2)
-      .reverse
       .take(maxResults)
       .map{case(key, score) => ScoredResult(key, score)}
 

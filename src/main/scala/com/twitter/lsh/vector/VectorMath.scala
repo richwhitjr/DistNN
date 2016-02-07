@@ -66,6 +66,25 @@ object VectorMath {
     vector.vectorCopy(returnVec)
   }
 
+  def cosineDistance[R <: BaseLshVector[R], S <: BaseLshVector[S]](vector: R, vector2: S): Double =
+    vectorDot(vector, vector2) / math.sqrt(vectorDot(vector, vector) * vectorDot(vector2, vector2))
+
+  def euclideanDistance[R <: BaseLshVector[R], S <: BaseLshVector[S]](vector: R, vector2: S): Double = {
+    val minSize = math.min(vector.size, vector2.size)
+
+    val returnVec = Array.ofDim[Double](minSize)
+    var idx = 0
+    var sum = 0.0
+
+    while(idx < minSize){
+      val value = vector(idx) - vector2(idx)
+      sum += value * value
+      idx += 1
+    }
+
+    math.sqrt(sum)
+  }
+
   def dot(v: Array[Double], v2: Array[Double]): Double = {
     val minSize = math.min(v.length, v2.length)
 
@@ -81,8 +100,8 @@ object VectorMath {
     sum
   }
 
-  def vectorDot[T, U](v: BaseLshVector[T], v2: BaseLshVector[U]): Double =
-    dot(v.vector, v2.vector)
+  def vectorDot[R <: BaseLshVector[R], S <: BaseLshVector[S]](vector: R, vector2: S): Double =
+    dot(vector.vector, vector2.vector)
 
   def magnitude[R](vec: BaseLshVector[R]): Double = {
     var sum = 0.0
