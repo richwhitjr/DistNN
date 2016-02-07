@@ -28,11 +28,10 @@ Below is an example that constructs the LSH table and queries it for one vector.
     LshParams(
       hashTables = 1,
       hashFunctions = 5,
-      radius = 1.0,
       dimensions = 4
     )
 
-  val lsh = EuclideanLshTest.build(lshParams, vectors)
+  val lsh = CosineLsh.build(lshParams, vectors)
 
   val firstVector = vectors.head
   val scoredResults = Await.result(lsh.queryVector(firstVector.vector, maxResults = 10))
