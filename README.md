@@ -1,7 +1,7 @@
 # Locality Sensitive Hashing Library on Distributed Stores
 
 This library implements the LSH algorithm in a way that the hash tables can be stored in distributed systems such as Redis or Memcache.
-For smaller use cases it can also store the vectors and hashed in memory.
+For smaller use cases it can also store the vectors and hashes in memory.
 
 To read more about the algorithm see http://en.wikipedia.org/wiki/Locality-sensitive_hashing
 
@@ -13,7 +13,7 @@ There is a script (called sbt) in the root that loads the correct sbt version to
 3. ./sbt assembly
 
 ## Quick Start
-The easiest place to start would be a simple LSH Server that uses in memory hash tables.
+The easiest place to start would be a simple LSH Server that uses an in memory hash tables.
 
 Below is an example that constructs the LSH table and queries it for one vector.
   
